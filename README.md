@@ -33,27 +33,6 @@ graph LR
     B -.->|Migration| E
 ```
 
-現状（n8n/スプシ）から、目指すべき標準的な構成への変化イメージです。
-
-```mermaid
-graph TD
-    subgraph "Current (No-code/SaaS)"
-        A[User Interface: Form/Sheet] --> B[Logic: n8n]
-        B --> C[(Data: Spreadsheet)]
-    end
-
-    subgraph "Target (Standard App Architecture)"
-        D[Presentation: Web/Mobile UI] -- "API (REST)" --> E[Application: AWS Lambda/EC2]
-        E -- "SQL/NoSQL" --> F[(Data: Amazon RDS/DynamoDB)]
-        G[Auth: Amazon Cognito] -.-> D
-    end
-
-    style A fill:#f9f,stroke:#333
-    style D fill:#bbf,stroke:#333
-    style F fill:#dfd,stroke:#333
-
-```
-
 ---
 
 ## 3. 3月第1週：スタートダッシュ計画
