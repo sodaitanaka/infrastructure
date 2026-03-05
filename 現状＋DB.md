@@ -1,3 +1,4 @@
+```mermaid
 %% ============================================================
 %% T3 Recruit Automation — 全体アーキテクチャ図（Spreadsheet → DB移行後）
 %% ============================================================
@@ -120,3 +121,4 @@ flowchart LR
     class N1,N2,N3,N4 n8nStyle
     class AI1,AI2 aiStyle
     class R1,R2,R3 rpaStyle
+```
