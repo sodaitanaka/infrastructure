@@ -1,3 +1,5 @@
+```mermaid
+
 %% ============================================================
 %% T3 Recruit Automation — 全体アーキテクチャ図
 %% ============================================================
@@ -122,3 +124,4 @@ flowchart TB
     class N8N n8nStyle
     class AI aiStyle
     class RPA rpaStyle
+```
