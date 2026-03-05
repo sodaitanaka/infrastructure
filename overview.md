@@ -470,8 +470,3 @@ gantt
     納品                         :milestone, 2026-09-02, 0d
     リリース                     :milestone, 2026-09-05, 0d
 ```
-
----
-
-*以上*  
-*株式会社homula*
