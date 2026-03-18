@@ -179,7 +179,87 @@ flowchart TD
 
 ---
 
-## 7. スケジュール
+## 7. 参考：現行PKPワークフロー構成
+
+### 7.1 ワークフロー一覧
+
+| 管理ID | ワークフロー名称 | 種別 | 役割 / 発火タイミング |
+|---|---|---|---|
+| 00 | `[SYS] When Pet is Registered Trigger Welcome Journeys` | 制御 | **司令塔**。全登録のエントリーポイント。プロパティ同期・各WFへの振り分け |
+| 01 | `[SYS] Route Registration Email` | 制御 | PKP / O2O を判定し `Most Recent Pet Number` を更新 |
+| 02 | `[SYS]FLOW-SPT-001 (即時クーポン)` | 即時 | 一般ルート / 登録直後 |
+| 03 | `[SYS]FLOW-SPT-001 (即時クーポン) (ブリーダー)` | 即時 | ブリーダールート / 登録直後 |
+| 04 | `[SYS] Welcome Journey 1 (登録後14日後)` | 定期 | 一般ルート / 登録日 +14日 |
+| 05 | `[SYS] Welcome Journey 1 (登録後14日後) (ブリーダー)` | 定期 | ブリーダールート / 登録日 +14日 |
+| 06 | `[SYS] Welcome Journey 2 (即時クーポン) (ブリーダー)` | 即時 | ブリーダールート限定 / 登録直後 |
+| 07 | `[SYS] Welcome Journey 2 (登録後14日後)` | 定期 | 一般ルート / 登録日 +14日 |
+| 08 | `[SYS] Welcome Journey 3 (登録後14日後)` | 定期 | 一般ルート / 登録日 +14日 |
+| 09 | `[SYS] Welcome Journey 3 (登録後14日後) (ブリーダー)` | 定期 | ブリーダールート / 登録日 +14日 |
+| 10 | `[SYS] Welcome Journey 4 (生後6か月)` | 定期 | 一般ルート / 誕生日 +6ヶ月 |
+| 11 | `[SYS] Welcome Journey 4 (生後6か月) (ブリーダー)` | 定期 | ブリーダールート / 誕生日 +6ヶ月 |
+| 12 | `[SYS] Welcome Journey 5 (生後8か月)` | 定期 | 一般ルート / 誕生日 +8ヶ月 |
+| 13 | `[SYS] Welcome Journey 5 (生後8か月) (ブリーダー)` | 定期 | ブリーダールート / 誕生日 +8ヶ月 |
+| 14 | `[TEST] Welcome Journey 6 (生後12か月)` | 定期 | 一般ルート / 誕生日 +12ヶ月 |
+| 15 | `[TEST] Welcome Journey 6 (生後12か月) (ブリーダー)` | 定期 | ブリーダールート / 誕生日 +12ヶ月 |
+| 16 | `[SYS]TEST-FLOW-SPT-001` | テスト | 開発検証用（storeCode=TEST1 で動作） |
+
+**共通送信系（他WFから呼び出し）**
+
+| ワークフロー名称 | 役割 |
+|---|---|
+| `[SYS] Set Coupon Code` | クーポンコードを生成・付与 |
+| `[SYS] Set Coupon Asset Code` | クーポンアセットコードを付与 |
+| `[SYS] Send Instant Coupon` | 即時クーポンのメール・LINE送信 |
+| `[SYS] Send Scheduled Coupon` | 定期クーポンの送信トリガー（内部でSend Instant Couponを呼び出し） |
+| `[SYS] Send Line Message` | LINE送信（Line User IDがある場合のみ） |
+
+### 7.2 司令塔（WF-00）の振り分けロジック
+
+```mermaid
+flowchart TD
+    Entry([Pet 登録]) --> Hub["[SYS] When Pet is Registered\nTrigger Welcome Journeys"]
+
+    Hub --> Sync["プロパティ同期\nPet Program → Member Program\nPartner Program → Contact"]
+    Sync --> B1{Pet Program = PKP\nor O2O?}
+    Sync --> B2{Breeder?}
+    Sync --> B3{storeCode = TEST1?}
+
+    B1 -- Yes --> WF01["[SYS] Route Registration Email"]
+    B3 -- Yes --> WF16["[SYS] TEST-FLOW-SPT-001"]
+
+    B2 -- Yes\n New + Breeder=Yes --> BreederGroup["ブリーダー系WF\nWF-03, 05, 06, 09, 11, 13, 15"]
+    B2 -- No --> GeneralGroup["一般系WF\nWF-02, 04, 07, 08, 10, 12, 14"]
+```
+
+### 7.3 クーポン発行フロー（PKP）
+
+```mermaid
+flowchart TD
+    WF02["WF-02: FLOW-SPT-001\n即時クーポン"] --> Q1{Pet Registration Type\n= New?}
+    Q1 -- No --> End([終了])
+    Q1 -- Yes --> Q2{Pet Age Type\n= Puppy/Kitten?}
+    Q2 -- No --> End
+    Q2 -- Yes --> Q3{Pet Category?}
+    Q3 -- Dog --> DogDeal["Deal作成\nCoupon ID: 12\nAsset: PKP_Coupon12_Puppy/Kitten_Dog"]
+    Q3 -- Cat --> CatDeal["Deal作成\nAsset: PKP_Coupon_Puppy/Kitten_Cat"]
+    DogDeal & CatDeal --> SetCode["[SYS] Set Coupon Code"]
+    SetCode --> Send["[SYS] Send Instant Coupon\nメール＋LINE送信"]
+```
+
+### 7.4 定期クーポンの Activation Date 設定ロジック
+
+| WF | 基準日 | 加算 | Activation Date |
+|---|---|---|---|
+| WJ1〜3 | `Registration Date` | +14日 | 登録14日後 |
+| WJ4 | `Pet Birthdate` | +6ヶ月 | 生後6ヶ月 |
+| WJ5 | `Pet Birthdate` | +8ヶ月 | 生後8ヶ月 |
+| WJ6 | `Pet Birthdate` | +12ヶ月 | 生後12ヶ月 |
+
+定期クーポンはActivation Date当日に `[SYS] Send Scheduled Coupon` がトリガーされ、内部で `[SYS] Send Instant Coupon` を呼び出してメール・LINE送信する。
+
+---
+
+## 8. スケジュール
 
 | マイルストーン | 期限 | 担当 |
 |---|---|---|
