@@ -61,7 +61,7 @@ flowchart TD
         MC2 --> H4[店舗責任者が\n月次実績を入力]:::userTask
         H4 --> H5["実績・GAPデータ・達成率を反映\n全ユーザー平均値算出\n季節指数算出・通期目標の反映"]:::systemTask
 
-        H5 --> GEN[月次・四半期・半期・年次\nコメント生成]:::systemTask
+        H5 --> GEN[月次・四半期・半期・年次\nコメント生成 \nタイミング毎月9日]:::systemTask
 
         GEN --> MC3 & MC32 & MC4
 
