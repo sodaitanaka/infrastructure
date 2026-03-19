@@ -25,18 +25,27 @@ flowchart TD
     %% ===== 商談フィードバック系 =====
     subgraph SYS1["サービス① 商談フィードバック系"]
         direction TB
-        G1[アカウント担当者が\n対象者・応酬話法URLを入力]:::userTask
-        G1 --> G2[商談フィードバックフォームを生成]:::systemTask
-        G2 --> MB
 
-        MB(["メールB\n商談フィードバックURL作成完了通知\nTo アカウント担当者\nタイミング：日次・URL作成完了時"]):::mailB
+        SYS1_START[ ]
+        SYS1_START --> B1_1 & B2_1
 
-        MB --> MG[アカウント担当者が\nURLを対象者へ共有]:::userTask
-        MG --> CF["商談フォームへの\n回答（随時）"]:::userTask
-        CF --> MB2
+        subgraph B1["1. 商談フィードバック"]
+            direction TB
+            B1_1(["メールB\n対象者の入力を依頼\nTo アカウント担当者\nタイミング：日次・URL作成完了時"]):::mailB
+            B1_1 --> B1_2[入力された対象者ごとに\n商談フィードバックURLを生成]:::systemTask
+            B1_2 --> B1_3["商談フォームへ回答\n（任意のタイミング）"]:::userTask
+            B1_3 --> B1_4(["メールB-2\n商談フィードバックレポート配信\nTo 本人・上長\nタイミング：フォーム回答後"]):::mailB
+        end
 
-        MB2(["メールB-2\n商談フィードバックレポート配信\nTo 本人・上長\nタイミング：商談フォーム回答後"]):::mailB
+        subgraph B2["2. 応酬話法抽出"]
+            direction TB
+            B2_1(["メールB\nURLの貼られたスプレッドシートを共有\nTo アカウント担当者\nタイミング：日次・URL作成完了時"]):::mailB
+            B2_1 --> B2_2["応酬話法フォームへ回答\n（任意のタイミング）"]:::userTask
+            B2_2 --> B2_3[スプレッドシートの\n応酬話法リストに行を追加]:::systemTask
+        end
     end
+
+    style SYS1_START fill:none,stroke:none
 
     %% ===== 数値レポート系 =====
     subgraph SYS2["サービス② 数値レポート系"]
