@@ -17,7 +17,7 @@ flowchart TD
     subgraph MA["メールA　送信タイミング：参画フォーム回答時　To アカウント担当者"]
         direction LR
         MA1["商談フィードバック系\n・対象者入力リスト\n・応酬話法URL"]:::mailA
-        MA2["数値レポート系\n・組織図入力\n・レポート対象者リスト入力"]:::mailA
+        MA2["数値レポート系\n・組織図入力\n・レポート対象者/対象組織リスト入力"]:::mailA
     end
 
     MA --> SYS1 & SYS2
