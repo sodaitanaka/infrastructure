@@ -1,3 +1,4 @@
+```mermaid
 flowchart TB
 
     subgraph P0["フェーズ 0　目標データ投入"]
@@ -82,3 +83,4 @@ flowchart TB
     class S_CAL,S_ACT,S_SIM p4
     class M_CAL,M_KPI,M_DD p5
     class A_VIEW,E_VIEW p6
+```
