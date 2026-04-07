@@ -1,0 +1,620 @@
+# ワークフロー実行フロー図
+
+## 共通凡例
+
+```mermaid
+flowchart LR
+    classDef trigger fill:#d9f7be,stroke:#52c41a,stroke-width:1px;
+    classDef sheets fill:#e6f7ff,stroke:#1890ff,stroke-width:1px;
+    classDef drive fill:#fff7e6,stroke:#fa8c16,stroke-width:1px;
+    classDef code fill:#f9f0ff,stroke:#722ed1,stroke-width:1px;
+    classDef ai fill:#fff0f6,stroke:#eb2f96,stroke-width:1px;
+    classDef mail fill:#f6ffed,stroke:#52c41a,stroke-width:2px;
+    classDef cond fill:#fffbe6,stroke:#d4a017,stroke-width:1px;
+    classDef user fill:#fffbe6,stroke:#d4a017,stroke-width:2px;
+    classDef manual fill:#f5f5f5,stroke:#595959,stroke-width:1px;
+
+    T([スケジュール/Webhook トリガー]):::trigger
+    S[Google Sheets 読み書き]:::sheets
+    D[Google Drive 操作]:::drive
+    C[コード処理]:::code
+    A[AI / Claude]:::ai
+    M[Gmail 送信]:::mail
+    IF{条件分岐}:::cond
+    U([ユーザー操作]):::user
+    MAN([手動実行]):::manual
+```
+
+---
+
+## 初期起動フロー（導入期セットアップ）
+
+新規クライアントが参画した際の初回セットアップフロー。
+
+```mermaid
+flowchart TD
+    classDef trigger fill:#d9f7be,stroke:#52c41a,stroke-width:1px;
+    classDef sheets fill:#e6f7ff,stroke:#1890ff,stroke-width:1px;
+    classDef drive fill:#fff7e6,stroke:#fa8c16,stroke-width:1px;
+    classDef code fill:#f9f0ff,stroke:#722ed1,stroke-width:1px;
+    classDef ai fill:#fff0f6,stroke:#eb2f96,stroke-width:1px;
+    classDef mail fill:#f6ffed,stroke:#52c41a,stroke-width:2px;
+    classDef cond fill:#fffbe6,stroke:#d4a017,stroke-width:1px;
+    classDef user fill:#fffbe6,stroke:#d4a017,stroke-width:2px;
+    classDef manual fill:#f5f5f5,stroke:#595959,stroke-width:1px;
+
+    %% =====================
+    %% 起点
+    %% =====================
+    START([営業担当が参画フォームを送信]):::user
+
+    %% =====================
+    %% WF00: 参画フォーム受信
+    %% =====================
+    START --> WF00_T
+
+    subgraph WF00["WF00: 研修参画フォームの受信"]
+        direction TB
+        WF00_T([トリガー\nGoogle Sheets 監視]):::trigger
+        WF00_T --> WF00_1
+
+        WF00_1[アンケート結果取得\nSheets: フォームリスト読み込み]:::sheets
+        WF00_1 --> WF00_2
+
+        WF00_2[最新情報取得\n最新レコードを抽出]:::code
+        WF00_2 --> WF00_3
+
+        WF00_3[研修参画ファイル作成\nSheets: 研修受講者リスト_入力用\n新規スプレッドシート生成]:::sheets
+        WF00_3 --> WF00_4
+
+        WF00_4[ヘッダー構造定義\n4シート分のヘッダーを設定]:::code
+        WF00_4 --> WF00_5A & WF00_5B & WF00_5C & WF00_5D
+
+        WF00_5A[ヘッダー追加 シート1]:::sheets
+        WF00_5B[ヘッダー追加 シート2]:::sheets
+        WF00_5C[ヘッダー追加 シート3]:::sheets
+        WF00_5D[ヘッダー追加 シート4]:::sheets
+
+        WF00_5A & WF00_5B & WF00_5C & WF00_5D --> WF00_6
+
+        WF00_6[全社共有フォルダ生成\nDrive: 会社別フォルダを作成]:::drive
+        WF00_6 --> WF00_7
+
+        WF00_7[ファイル移動\nスプレッドシートを共有フォルダへ移動]:::drive
+        WF00_7 --> WF00_8
+
+        WF00_8[通知メール送信\nGmail: アカウント担当者へ完了通知\nメールA]:::mail
+    end
+
+    WF00_8 --> SETUP_USER
+
+    %% =====================
+    %% ユーザーによる初期データ入力
+    %% =====================
+    SETUP_USER([アカウント担当者が\n組織図・対象者リストを\n生成されたスプレッドシートへ入力]):::user
+    SETUP_USER --> WF03_2_INIT & WF03_3_INIT
+
+    %% =====================
+    %% WF03_2: 組織体制読み込み（初回）
+    %% =====================
+    subgraph WF03_2_BLOCK["WF03_2: 組織体制読み込み（初回実行）"]
+        direction TB
+        WF03_2_INIT([スケジュールトリガー\n月末 28〜31日\n※初回は手動実行 or 月末待ち]):::trigger
+        WF03_2_INIT --> WF03_2_1
+
+        WF03_2_1[会社情報マスタ取得\nSheets: 会社情報管理マスタ]:::sheets
+        WF03_2_1 --> WF03_2_2
+
+        WF03_2_2[組織体制ファイル検索\nDrive: 随時更新_組織体制_@会社]:::drive
+        WF03_2_2 --> WF03_2_3
+
+        WF03_2_3[組織体制データ読み込み\n組織体制管理マスタへ書き込み]:::sheets
+    end
+
+    %% =====================
+    %% WF03_3: 予算・昨期実績読み込み（初回）
+    %% =====================
+    subgraph WF03_3_BLOCK["WF03_3: 予算・昨期実績情報読み込み（初回実行）"]
+        direction TB
+        WF03_3_INIT([スケジュールトリガー\n月末 28〜31日\n※初回は手動実行 or 月末待ち]):::trigger
+        WF03_3_INIT --> WF03_3_1
+
+        WF03_3_1[予算ファイル検索\nDrive: 予算情報_@会社]:::drive
+        WF03_3_1 --> WF03_3_2
+
+        WF03_3_2[全シートデータ取得\nHTTP: Google Apps Script経由]:::code
+        WF03_3_2 --> WF03_3_3
+
+        WF03_3_3[データ正規化\n日付を YYYY-MM 形式に統一\n除外シートをフィルタリング]:::code
+        WF03_3_3 --> WF03_3_4
+
+        WF03_3_4[予算情報管理マスタへ書き込み\nSheets: ヘッダー追加 + データ転記]:::sheets
+    end
+
+    WF03_2_3 & WF03_3_4 --> MASTER_AVG_BLOCK
+
+    %% =====================
+    %% マスタ平均算出（手動実行）
+    %% =====================
+    subgraph MASTER_AVG_BLOCK["マスタ平均算出（手動実行）"]
+        direction TB
+        MASTER_AVG_T([手動実行トリガー]):::manual
+        MASTER_AVG_T --> MASTER_AVG_1
+
+        MASTER_AVG_1[会社情報マスタ取得]:::sheets
+        MASTER_AVG_1 --> MASTER_AVG_2
+
+        MASTER_AVG_2[集計期間算出\n月次・四半期・半期・年次]:::code
+        MASTER_AVG_2 --> MASTER_AVG_3
+
+        MASTER_AVG_3[昨期実績マスタ取得\n+ 予算マスタ取得]:::sheets
+        MASTER_AVG_3 --> MASTER_AVG_4
+
+        MASTER_AVG_4[KPI 平均値・転換率を算出\n来店数・アンケート・見積・成約]:::code
+        MASTER_AVG_4 --> MASTER_AVG_5
+
+        MASTER_AVG_5[会社別レポートシートへ書き込み\n平均値・転換率を格納]:::sheets
+    end
+
+    MASTER_AVG_5 --> DATETIME_COPY_BLOCK
+
+    %% =====================
+    %% WF00_日時マスタコピー（月次スケジュール）
+    %% =====================
+    subgraph DATETIME_COPY_BLOCK["WF00_日時マスタコピー（月次スケジュール）"]
+        direction TB
+        DATETIME_T([スケジュールトリガー\n月次]):::trigger
+        DATETIME_T --> DATETIME_1
+
+        DATETIME_1[日時マスタデータ取得\nSheets: 参照用日時マスタ]:::sheets
+        DATETIME_1 --> DATETIME_2
+
+        DATETIME_2[マスタデータコピー\n最新の日時参照情報を転記]:::sheets
+    end
+
+    DATETIME_2 --> SETUP_DONE
+
+    SETUP_DONE(["初期セットアップ完了\n月次サイクル運用へ移行"])
+
+    %% =====================
+    %% サービス①：商談フィードバック（随時）
+    %% =====================
+    note1["── サービス①は随時トリガー ──\nWF01・WF02 は独立して稼働\n月次サイクルとは非同期"]
+
+```
+
+---
+
+### サービス①：商談フィードバック（随時起動）
+
+WF01・WF02 は月次サイクルと独立して、フォーム送信のたびに起動する。
+
+```mermaid
+flowchart TD
+    classDef trigger fill:#d9f7be,stroke:#52c41a,stroke-width:1px;
+    classDef sheets fill:#e6f7ff,stroke:#1890ff,stroke-width:1px;
+    classDef drive fill:#fff7e6,stroke:#fa8c16,stroke-width:1px;
+    classDef code fill:#f9f0ff,stroke:#722ed1,stroke-width:1px;
+    classDef ai fill:#fff0f6,stroke:#eb2f96,stroke-width:1px;
+    classDef mail fill:#f6ffed,stroke:#52c41a,stroke-width:2px;
+    classDef cond fill:#fffbe6,stroke:#d4a017,stroke-width:1px;
+    classDef user fill:#fffbe6,stroke:#d4a017,stroke-width:2px;
+
+    %% =====================
+    %% WF01: 商談フィードバック受信
+    %% =====================
+    WF01_U([営業担当が商談フィードバックフォームへ回答]):::user
+    WF01_U --> WF01_T
+
+    subgraph WF01["WF01: 商談フィードバックの受信"]
+        direction TB
+        WF01_T([Webhook トリガー\nHTTP POST 受信]):::trigger
+        WF01_T --> WF01_1
+
+        WF01_1[マスタDB から最新エントリ取得\nSheets: 商談アンケートフォームリスト]:::sheets
+        WF01_1 --> WF01_2
+
+        WF01_2[最新情報抽出\n最新1件を取り出し]:::code
+        WF01_2 --> WF01_3A & WF01_3B & WF01_3C
+
+        WF01_3A[購入する理由リスト取得]:::sheets
+        WF01_3B[応酬話法ゴールデンデータ取得]:::sheets
+        WF01_3C[クロージングトークリスト取得]:::sheets
+
+        WF01_3A & WF01_3B & WF01_3C --> WF01_4
+
+        WF01_4[フィールド統合\n3リストを配列にまとめる]:::code
+        WF01_4 --> WF01_5
+
+        WF01_5[音声テキストファイルID 抽出\nフォーム URL から Drive ID を取得]:::code
+        WF01_5 --> WF01_IF
+
+        WF01_IF{ファイルID\n存在チェック}:::cond
+        WF01_IF -- あり --> WF01_6A
+        WF01_IF -- なし --> WF01_6B
+
+        WF01_6A[ファイルダウンロード\nDrive: テキストファイル取得]:::drive
+        WF01_6A --> WF01_7A[テキスト抽出]:::code
+
+        WF01_6B[空データ返却\n音声テキストなし]:::code
+
+        WF01_7A & WF01_6B --> WF01_8
+
+        WF01_8[AI レポート生成\nClaude: 商談内容を分析し\nフィードバックレポートを生成]:::ai
+        WF01_8 --> WF01_9
+
+        WF01_9[HTML スタイル付与\nCSS でレポートを装飾]:::code
+        WF01_9 --> WF01_10A & WF01_10B
+
+        WF01_10A[ログデータ作成\n送信日・送信先・WF番号]:::code
+        WF01_10A --> WF01_10AW[ログ書き込み\nSheets: ログシートへ追記]:::sheets
+
+        WF01_10B[メール送信\nGmail: HTML レポートを本人・上長へ配信\nメールB-2]:::mail
+    end
+
+    %% =====================
+    %% WF02: 応酬話法抽出受信
+    %% =====================
+    WF02_U([営業担当が応酬話法フォームへ回答]):::user
+    WF02_U --> WF02_T
+
+    subgraph WF02["WF02: 応酬話法抽出フォームの受信"]
+        direction TB
+        WF02_T([Webhook トリガー\nHTTP POST 受信]):::trigger
+        WF02_T --> WF02_IF
+
+        WF02_IF{音声テキストファイル\n存在チェック}:::cond
+        WF02_IF -- あり --> WF02_1A
+        WF02_IF -- なし --> WF02_1B
+
+        WF02_1A[ファイルダウンロード\nDrive: テキストファイル取得]:::drive
+        WF02_1A --> WF02_2A[テキスト抽出]:::code
+
+        WF02_1B[空データ返却]:::code
+
+        WF02_2A & WF02_1B --> WF02_3
+
+        WF02_3[AI 応酬話法抽出\nClaude: PSL フレームワークで分析\nスコア・レベル・改善点を生成]:::ai
+        WF02_3 --> WF02_4
+
+        WF02_4[JSON データ整形]:::code
+        WF02_4 --> WF02_5
+
+        WF02_5[会社フォルダ検索\nDrive: @会社フォルダを特定]:::drive
+        WF02_5 --> WF02_6
+
+        WF02_6[既存応酬話法リスト取得\n+ ゴールデンデータ取得\n+ 全社マスタ取得 （並列）]:::sheets
+        WF02_6 --> WF02_7
+
+        WF02_7[連番付与\n既存リストの末尾番号から採番]:::code
+        WF02_7 --> WF02_8
+
+        WF02_8[会社別リストへ追記\nSheets: 新エントリを追加]:::sheets
+        WF02_8 --> WF02_9
+
+        WF02_9[ゴールデンデータシートをクリア\nSheets: 既存データを削除]:::sheets
+        WF02_9 --> WF02_10
+
+        WF02_10[マージ・並び替え・マスタ転記\n会社データ + 既存データを結合\nソート後に全社マスタへコピー]:::sheets
+    end
+```
+
+---
+
+## 月次起動フロー
+
+毎月、月末から翌月初にかけて自動実行される定期処理フロー。
+
+```mermaid
+flowchart TD
+    classDef trigger fill:#d9f7be,stroke:#52c41a,stroke-width:1px;
+    classDef sheets fill:#e6f7ff,stroke:#1890ff,stroke-width:1px;
+    classDef drive fill:#fff7e6,stroke:#fa8c16,stroke-width:1px;
+    classDef code fill:#f9f0ff,stroke:#722ed1,stroke-width:1px;
+    classDef ai fill:#fff0f6,stroke:#eb2f96,stroke-width:1px;
+    classDef mail fill:#f6ffed,stroke:#52c41a,stroke-width:2px;
+    classDef cond fill:#fffbe6,stroke:#d4a017,stroke-width:1px;
+    classDef user fill:#fffbe6,stroke:#d4a017,stroke-width:2px;
+
+    %% =====================
+    %% ① 月初：前月データに基づくレポート配信
+    %% =====================
+    M1_START(["【月初 1日 00:00〜】"])
+
+    M1_START --> RESET_T & WF06_T & MAIL_C2_T
+
+    %% 今月の使用回数初期化
+    subgraph RESET["今月の使用回数初期化"]
+        direction TB
+        RESET_T([スケジュールトリガー\n月次 1日]):::trigger
+        RESET_T --> RESET_1
+
+        RESET_1[フォームリスト取得\nSheets: 研修受講者別フォームリスト]:::sheets
+        RESET_1 --> RESET_2
+
+        RESET_2[全行の使用回数を 0 にリセット\n今月の使用回数 = 0]:::code
+        RESET_2 --> RESET_3
+
+        RESET_3[シート更新\nSheets: リセット結果を書き込み]:::sheets
+    end
+
+    %% WF06: AIレポート生成・配信
+    subgraph WF06["WF06: フィードバックレポート生成・配信"]
+        direction TB
+        WF06_T([スケジュールトリガー\n月次 1日 01:00]):::trigger
+        WF06_T --> WF06_1
+
+        WF06_1[会社情報マスタ取得\nSheets: 会社情報管理マスタ]:::sheets
+        WF06_1 --> WF06_LOOP
+
+        subgraph WF06_LOOP["会社ごとにループ"]
+            direction TB
+            WF06_2[組織体制ファイル検索\nDrive: 随時更新_組織体制_@会社]:::drive
+            WF06_2 --> WF06_3
+
+            WF06_3[組織体制取得\nSheets: 担当者・メールアドレス一覧]:::sheets
+            WF06_3 --> WF06_4
+
+            WF06_4[配信リスト構築\n会社・エリア・店舗・個人 別の\nTo/CC リストを生成]:::code
+            WF06_4 --> WF06_INNER
+
+            subgraph WF06_INNER["組織単位ごとにループ（会社/エリア/店舗/個人）"]
+                direction TB
+                WF06_5[集計ダッシュボードフォルダ検索\nDrive: 集計フォルダを特定]:::drive
+                WF06_5 --> WF06_6
+
+                WF06_6[組織レベル別データ取得\nSheets: 月次・四半期・半期・年次集計シート]:::sheets
+                WF06_6 --> WF06_7
+
+                WF06_7[AI レポート生成\nClaude Sonnet:\n① 今月の称賛\n② 一言総括\n③ 来月の優先テーマ\n④ 来月の行動目標\n⑤ 店長自身の行動KPI\n⑥ 年間達成に向けたコメント]:::ai
+                WF06_7 --> WF06_8
+
+                WF06_8[メール送信\nGmail: 組織単位ごとに配信\nメールD]:::mail
+            end
+        end
+    end
+
+    %% メールC-2 & C-4 送信
+    subgraph MAIL_C["メールC-2 & C-4 送信"]
+        direction TB
+        MAIL_C2_T([スケジュールトリガー\n月次 1日]):::trigger
+        MAIL_C2_T --> MAIL_C_1
+
+        MAIL_C_1[会社情報マスタ取得\nSheets]:::sheets
+        MAIL_C_1 --> MAIL_C_2
+
+        MAIL_C_2[会社フォルダ検索\nDrive]:::drive
+        MAIL_C_2 --> MAIL_C_3
+
+        MAIL_C_3[実績データ取得\nHTTP: Google Apps Script]:::code
+        MAIL_C_3 --> MAIL_C_4
+
+        MAIL_C_4[配信リスト構築]:::code
+        MAIL_C_4 --> MAIL_C_IF
+
+        MAIL_C_IF{期間条件\n確認}:::cond
+        MAIL_C_IF -- 月次実績入力依頼 --> MAIL_C_5A
+        MAIL_C_IF -- 年間目標入力依頼 --> MAIL_C_5B
+
+        MAIL_C_5A[C-2 送信\nGmail: 月次実績入力依頼\nTo 店舗責任者 CC T3]:::mail
+        MAIL_C_5B[C-4 送信\nGmail: 年間目標入力依頼\nTo 担当者]:::mail
+    end
+
+    RESET_3 & WF06_8 & MAIL_C_5A & MAIL_C_5B --> M1_END
+
+    M1_END(["【月中】ユーザーが当月実績をスプレッドシートへ入力"]):::user
+
+    %% =====================
+    %% ② WF07：期初目標設定更新依頼（月次チェック）
+    %% =====================
+    M1_END --> WF07_CHECK
+
+    subgraph WF07["WF07: 期初目標設定更新依頼（月次チェック）"]
+        direction TB
+        WF07_CHECK([スケジュールトリガー\n月次]):::trigger
+        WF07_CHECK --> WF07_1
+
+        WF07_1[会社情報マスタ取得\n事業年度開始月を確認]:::sheets
+        WF07_1 --> WF07_IF
+
+        WF07_IF{現在月 ==\n事業年度開始月?}:::cond
+        WF07_IF -- NO → スキップ --> WF07_SKIP[何もしない]
+        WF07_IF -- YES --> WF07_2
+
+        WF07_2[組織体制マスタ取得\nメールアドレス一覧]:::sheets
+        WF07_2 --> WF07_3
+
+        WF07_3[目標設定更新依頼メール送信\nGmail: To 本人・上長\nメールE]:::mail
+    end
+
+    WF07_SKIP & WF07_3 --> M2_START
+
+    %% =====================
+    %% ③ 月末：データ集計処理
+    %% =====================
+    M2_START(["【月末 28〜31日】実績入力完了後に順次実行"])
+
+    M2_START --> WF03_2_T & WF03_3_T
+
+    %% WF03_2: 組織体制読み込み
+    subgraph WF03_2["WF03_2: 組織体制読み込み"]
+        direction TB
+        WF03_2_T([スケジュールトリガー\n月末 28〜31日]):::trigger
+        WF03_2_T --> WF03_2_1
+
+        WF03_2_1[会社情報マスタ取得]:::sheets
+        WF03_2_1 --> WF03_2_2
+
+        WF03_2_2[組織体制ファイル検索\nDrive: 随時更新_組織体制_@会社]:::drive
+        WF03_2_2 --> WF03_2_3
+
+        WF03_2_3[組織体制管理マスタへ書き込み\nSheets]:::sheets
+    end
+
+    %% WF03_3: 予算・昨期実績読み込み
+    subgraph WF03_3["WF03_3: 予算・昨期実績情報読み込み"]
+        direction TB
+        WF03_3_T([スケジュールトリガー\n月末 28〜31日]):::trigger
+        WF03_3_T --> WF03_3_1
+
+        WF03_3_1[予算ファイル検索\nDrive: 予算情報_@会社]:::drive
+        WF03_3_1 --> WF03_3_2
+
+        WF03_3_2[全シートデータ取得\nHTTP: Google Apps Script]:::code
+        WF03_3_2 --> WF03_3_3
+
+        WF03_3_3[データ正規化\nYYYY-MM 形式に統一\n除外シートをフィルタリング]:::code
+        WF03_3_3 --> WF03_3_4
+
+        WF03_3_4[予算情報管理マスタへ書き込み\nSheets: ヘッダー + データ転記]:::sheets
+    end
+
+    WF03_2_3 & WF03_3_4 --> WF04_T
+
+    %% WF04: 季節指数算出
+    subgraph WF04["WF04: 季節指数算出ワークフロー"]
+        direction TB
+        WF04_T([スケジュールトリガー\n月末 28〜31日]):::trigger
+        WF04_T --> WF04_1
+
+        WF04_1[会社情報マスタ取得]:::sheets
+        WF04_1 --> WF04_IF
+
+        WF04_IF{現在月 == サービス開始月\nOR 事業年度開始月?}:::cond
+        WF04_IF -- NO → スキップ --> WF04_SKIP[季節指数算出をスキップ]
+        WF04_IF -- YES --> WF04_2
+
+        WF04_2[会社フォルダ検索\nDrive: 5階層フォルダ探索]:::drive
+        WF04_2 --> WF04_3A & WF04_3B
+
+        WF04_3A[実績データ取得 A\nHTTP: Google Apps Script]:::code
+        WF04_3B[実績データ取得 B\nHTTP: Google Apps Script]:::code
+
+        WF04_3A & WF04_3B --> WF04_4
+
+        WF04_4[データ正規化\n日付統一・フラット化]:::code
+        WF04_4 --> WF04_5
+
+        WF04_5[年間平均算出\n会社×月 でKPI を集計・平均化]:::code
+        WF04_5 --> WF04_6
+
+        WF04_6[季節指数算出\n月別平均 ÷ 会社平均 × 100\n来店数・成約・売上・粗利 の4指数]:::code
+        WF04_6 --> WF04_7
+
+        WF04_7[マスタ更新\nSheets: 季節指数マスタに書き込み]:::sheets
+    end
+
+    WF04_SKIP & WF04_7 --> WF05_T
+
+    %% WF05: 月次・四半期・年次 数値集計
+    subgraph WF05["WF05: 月次_四半期_年次 数値集計・分類"]
+        direction TB
+        WF05_T([スケジュールトリガー\n月末 28〜31日]):::trigger
+        WF05_T --> WF05_1
+
+        WF05_1[会社情報マスタ取得]:::sheets
+        WF05_1 --> WF05_2
+
+        WF05_2[会社フォルダ検索\nDrive]:::drive
+        WF05_2 --> WF05_3A & WF05_3B
+
+        WF05_3A[予算データ取得\nHTTP: Google Apps Script]:::code
+        WF05_3B[実績データ取得\nSheets: 予算情報_@会社]:::sheets
+
+        WF05_3A & WF05_3B --> WF05_4
+
+        WF05_4[データ正規化\n日付統一・フラット化]:::code
+        WF05_4 --> WF05_5
+
+        WF05_5[ローリング12ヶ月集計\n移動集計ウィンドウを構築]:::code
+        WF05_5 --> WF05_6
+
+        WF05_6[集計期間算出\n月次・四半期・半期・年次\n事業年度を考慮]:::code
+        WF05_6 --> WF05_LOOP
+
+        subgraph WF05_LOOP["会社ごとにループ（16パターン = 4期間 × 4階層）"]
+            direction TB
+            WF05_7[集計対象フォルダ検索\nDrive]:::drive
+            WF05_7 --> WF05_8
+
+            WF05_8{期間種別で分岐\n月次/四半期/半期/年次}:::cond
+            WF05_8 --> WF05_9
+
+            WF05_9[KPI 集計・転換率算出\n来店数・アンケート・見積・成約\n来店→アンケート・見積→成約率\n達成率]:::code
+            WF05_9 --> WF05_10
+
+            WF05_10[集計シートへ書き込み\nSheets: 月次/四半期/半期/年次 シート]:::sheets
+        end
+    end
+
+    WF05_10 --> M2_END
+
+    M2_END(["月末処理完了\n翌月1日 WF06 実行待ち"])
+
+    %% ループ矢印
+    M2_END -.->|翌月1日| M1_START
+```
+
+---
+
+## 実行タイミング早見表
+
+| タイミング | ワークフロー | 概要 |
+|---|---|---|
+| **随時**（フォーム送信時） | WF00 | 参画フォーム受信 → ファイル・フォルダ生成 → 通知メール |
+| **随時**（フォーム送信時） | WF01 | 商談フィードバック受信 → AI 分析 → レポートメール |
+| **随時**（フォーム送信時） | WF02 | 応酬話法フォーム受信 → AI 抽出 → マスタ更新 |
+| **月次 1日**（月初） | 今月の使用回数初期化 | 月次使用回数を全件 0 にリセット |
+| **月次 1日 01:00** | WF06 | AI レポート生成 → 組織別メール配信 |
+| **月次 1日** | メールC-2 & C-4 | 月次実績入力依頼メール送信 |
+| **月次**（条件付き） | WF07 | 事業年度開始月のみ：目標設定更新依頼メール送信 |
+| **月末 28〜31日**（並列） | WF03_2 | 組織体制マスタ更新 |
+| **月末 28〜31日**（並列） | WF03_3 | 予算・昨期実績マスタ更新 |
+| **月末 28〜31日**（WF03後） | WF04 | 季節指数算出（条件付き） |
+| **月末 28〜31日**（WF04後） | WF05 | 月次・四半期・半期・年次データ集計 |
+| **手動** | マスタ平均算出 | KPI 平均値・転換率を手動計算 |
+| **月次** | WF00_日時マスタコピー | 日時参照マスタをコピー |
+
+---
+
+## ワークフロー間のデータ依存関係
+
+```mermaid
+flowchart LR
+    classDef trigger fill:#d9f7be,stroke:#52c41a,stroke-width:1px;
+    classDef sheets fill:#e6f7ff,stroke:#1890ff,stroke-width:1px;
+    classDef wf fill:#f0f7ff,stroke:#0052cc,stroke-width:1px;
+
+    WF00[WF00\n参画フォーム受信]:::wf
+    WF01[WF01\n商談フィードバック]:::wf
+    WF02[WF02\n応酬話法抽出]:::wf
+    WF03_2[WF03_2\n組織体制読み込み]:::wf
+    WF03_3[WF03_3\n予算・昨期実績読み込み]:::wf
+    WF04[WF04\n季節指数算出]:::wf
+    WF05[WF05\n数値集計]:::wf
+    WF06[WF06\nAI レポート配信]:::wf
+    WF07[WF07\n期初更新依頼]:::wf
+    MA[マスタ平均算出]:::wf
+
+    M1[(会社情報\n管理マスタ)]:::sheets
+    M2[(組織体制\n管理マスタ)]:::sheets
+    M3[(予算情報\n管理マスタ)]:::sheets
+    M4[(季節指数\nマスタ)]:::sheets
+    M5[(月次ロー\nデータ合算後)]:::sheets
+    M6[(応酬話法\nゴールデンデータ)]:::sheets
+
+    WF00 --> M1
+    WF03_2 --> M2
+    WF03_3 --> M3
+    WF02 --> M6
+
+    M1 --> WF03_2 & WF03_3 & WF04 & WF05 & WF06 & WF07 & MA
+    M2 --> WF06
+    M3 --> WF04 & WF05 & MA
+    M4 --> WF05
+    M5 --> WF06
+    M6 --> WF01
+
+    WF04 --> M4
+    WF05 --> M5
+```
